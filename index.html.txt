@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Garden City Univerity EVM</title>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    color:white;
+    text-align:center;
+}
+
+.container{
+    width:720px;
+    margin:25px auto;
+    background:#fff;
+    color:#000;
+    padding:25px;
+    border-radius:18px;
+    box-shadow:0 0 30px rgba(0,0,0,0.45);
+}
+
+/* ADMIN INDICATOR */
+#adminIndicator{
+    display:none;
+    background:#c0392b;
+    color:white;
+    padding:8px;
+    border-radius:8px;
+    margin-bottom:10px;
+    font-weight:bold;
+}
+
+/* LOGO */
+.logo{
+    width:110px;
+    margin-bottom:10px;
+    transition:transform 0.3s ease;
+}
+.logo.spin{
+    transform:rotate(10deg) scale(1.05);
+}
+
+.party{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px;
+    margin:12px 0;
+    border-radius:12px;
+    border:2px solid #ddd;
+}
+.party.winner{
+    border:3px solid gold;
+    background:#fff7d6;
+}
+
+.icon{font-size:32px}
+.party-name{
+    flex:1;
+    text-align:left;
+    margin-left:12px;
+    font-weight:bold;
+}
+
+.vote-btn{
+    width:70px;
+    height:38px;
+    background:#2ecc71;
+    border:none;
+    border-radius:8px;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+    box-shadow:0 5px #1e9e54;
+}
+.vote-btn:active{
+    transform:translateY(4px);
+    box-shadow:0 1px #1e9e54;
+}
+
+.led{
+    width:10px;
+    height:10px;
+    background:#444;
+    border-radius:50%;
+}
+.led.on{
+    background:red;
+    box-shadow:0 0 12px red;
+}
+
+.admin-btn{
+    background:#2980b9;
+    padding:8px 18px;
+    border:none;
+    color:white;
+    border-radius:8px;
+    cursor:pointer;
+    margin-top:10px;
+}
+
+.result{display:none;margin-top:20px}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+th,td{
+    border:1px solid #ccc;
+    padding:8px;
+}
+
+.winner-banner{
+    background:gold;
+    padding:12px;
+    font-size:20px;
+    font-weight:bold;
+    margin-bottom:10px;
+    border-radius:10px;
+}
+
+/* CONFIRM SCREEN */
+.evm-confirm{
+    position:fixed;
+    inset:0;
+    background:#00a651;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:9999;
+    animation:flash 0.7s ease forwards;
+}
+.evm-box{
+    background:white;
+    padding:30px 45px;
+    border-radius:16px;
+}
+.tick{
+    font-size:52px;
+    color:#00a651;
+}
+@keyframes flash{
+    0%{opacity:0}
+    20%{opacity:1}
+    80%{opacity:1}
+    100%{opacity:0}
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div id="adminIndicator">🔐 ADMIN MODE ENABLED</div>
+
+<img src="https://image-upload.getmycollege.com/new-uploads/college/logo/garden-city-university-school-of-engineering-logo-573.png"
+     class="logo" id="collegeLogo">
+
+<h2>🗳️ GARDEN CITY UNIVRSITY ELECTION</h2>
+<p><b>Student Council • EVM Voting System</b></p>
+
+<div class="party">
+    <div class="icon">🌿</div>
+    <div class="party-name">Garden City Green Panel</div>
+    <div class="led" id="l0"></div>
+    <button class="vote-btn" onclick="vote(0)">VOTE</button>
+</div>
+
+<div class="party">
+    <div class="icon">📚</div>
+    <div class="party-name">Academic Excellence Panel</div>
+    <div class="led" id="l1"></div>
+    <button class="vote-btn" onclick="vote(1)">VOTE</button>
+</div>
+
+<div class="party">
+    <div class="icon">💻</div>
+    <div class="party-name">Tech Innovation Panel</div>
+    <div class="led" id="l2"></div>
+    <button class="vote-btn" onclick="vote(2)">VOTE</button>
+</div>
+
+<div class="party">
+    <div class="icon">👥</div>
+    <div class="party-name">Student Welfare Panel</div>
+    <div class="led" id="l3"></div>
+    <button class="vote-btn" onclick="vote(3)">VOTE</button>
+</div>
+
+<div class="party">
+    <div class="icon">🚫</div>
+    <div class="party-name">NOTA</div>
+    <div class="led" id="l4"></div>
+    <button class="vote-btn" onclick="vote(4)">VOTE</button>
+</div>
+
+<button class="admin-btn" onclick="adminLogin()">🔐 Admin Login</button>
+<button class="admin-btn" id="showResultsBtn" onclick="showResults()" style="display:none;">
+📊 Show Results
+</button>
+
+<div class="result" id="result"></div>
+
+</div>
+
+<script>
+/* CONFIG */
+const adminPassword = "admin123";
+const names = [
+    "Garden City Green Panel",
+    "Academic Excellence Panel",
+    "Tech Innovation Panel",
+    "Student Welfare Panel",
+    "NOTA"
+];
+
+/* STATE */
+let votes = JSON.parse(localStorage.getItem("votes")) || Array(5).fill(0);
+let hasVoted = localStorage.getItem("hasVoted") === "true";
+let isAdmin = false;
+
+/* AUDIO */
+const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+function playBeep(){
+    if(audioCtx.state === "suspended") audioCtx.resume();
+
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = "square";
+    o.frequency.value = 800;
+    g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    o.start(); o.stop(audioCtx.currentTime + 0.15);
+}
+
+/* CONFIRM */
+function evmConfirm(){
+    const d=document.createElement("div");
+    d.className="evm-confirm";
+    d.innerHTML=`<div class="evm-box">
+        <div class="tick">✔✔</div>
+        <b>VOTE RECORDED</b>
+    </div>`;
+    document.body.appendChild(d);
+    setTimeout(()=>d.remove(),700);
+}
+
+/* LOGO */
+function spinLogo(){
+    const logo=document.getElementById("collegeLogo");
+    logo.classList.add("spin");
+    setTimeout(()=>logo.classList.remove("spin"),300);
+}
+
+/* VOTE */
+function vote(i){
+    if(!isAdmin && hasVoted){
+        alert("⚠️ You have already voted!");
+        return;
+    }
+
+    playBeep();
+    evmConfirm();
+    spinLogo();
+
+    votes[i]++;
+    localStorage.setItem("votes",JSON.stringify(votes));
+
+    if(!isAdmin){
+        hasVoted = true;
+        localStorage.setItem("hasVoted","true");
+    }
+
+    const led=document.getElementById("l"+i);
+    led.classList.add("on");
+    setTimeout(()=>led.classList.remove("on"),600);
+}
+
+/* ADMIN LOGIN */
+function adminLogin(){
+    if(prompt("Admin password") !== adminPassword){
+        alert("Wrong password");
+        return;
+    }
+    isAdmin = true;
+    document.getElementById("adminIndicator").style.display="block";
+    document.getElementById("showResultsBtn").style.display="inline-block";
+    alert("✅ Admin mode enabled");
+}
+
+/* RESULTS (ADMIN ONLY) */
+function showResults(){
+    if(!isAdmin){
+        alert("❌ Access denied!");
+        return;
+    }
+
+    let max=Math.max(...votes);
+    let winIndex=votes.indexOf(max);
+
+    let html=`<div class="winner-banner">🏆 Winner: ${names[winIndex]}</div>
+    <table><tr><th>Panel</th><th>Votes</th></tr>`;
+
+    votes.forEach((v,i)=>{
+        html+=`<tr><td>${names[i]}</td><td>${v}</td></tr>`;
+    });
+
+    html+="</table>";
+    document.getElementById("result").style.display="block";
+    document.getElementById("result").innerHTML=html;
+}
+</script>
+
+</body>
+</html>
